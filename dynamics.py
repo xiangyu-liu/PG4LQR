@@ -4,7 +4,7 @@ import warnings
 import scipy
 import scipy.linalg
 
-warnings.simplefilter('error', RuntimeWarning)
+# warnings.simplefilter('error', RuntimeWarning)
 
 
 class Dynamics:
