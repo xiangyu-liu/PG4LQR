@@ -4,6 +4,8 @@ import argparse
 from pathlib import Path
 import os
 from tensorboardX import SummaryWriter
+import multiprocessing
+from multiprocessing import Pool
 
 np.random.seed(0)
 
@@ -15,9 +17,22 @@ def modify_dynamics4test(env):
     env.R = np.diag([0, ] * env.action_dim)
 
 
+def sub(K, record1, record2, args):
+    U_i = 2 * (np.random.rand(*K.shape) - 0.5)
+    U_i = (args.r / np.linalg.norm(U_i)) * U_i
+    env = Dynamics(args.state_dim, args.action_dim)
+    state = env.reset()
+    cost_list, state_list = env.rollout(K + U_i, state, args.l)
+    C_i = sum(cost_list)
+    sigma_i = sum([np.dot(i, i.T) for i in state_list])
+
+    record1.append(C_i * U_i)
+    record2.append(sigma_i)
+
+
 def main(args):
-    model_dir = Path('./logs') / "{}-{}".format(args.state_dim,
-                                                args.action_dim) / "natural is {} smoothing parameter {} lr {}".format(
+    model_dir = Path('./paralell_logs') / "{}-{}".format(args.state_dim,
+                                                         args.action_dim) / "natural is {} smoothing parameter {} lr {}".format(
         args.natural, args.r,
         args.lr)
     if not model_dir.exists():
@@ -34,27 +49,24 @@ def main(args):
     run_dir = model_dir / curr_run
     os.makedirs(str(run_dir))
     logger = SummaryWriter(str(run_dir))
+
     env = Dynamics(args.state_dim, args.action_dim)
-    # modify_dynamics4test(env)
     optimal_K = env.cal_optimal_K()
     K = np.zeros((args.action_dim, args.state_dim))
     d = args.state_dim
+    print("cpu count is {}".format(multiprocessing.cpu_count()))
 
     for epoch in range(args.epoch):
-        c_gradient = np.zeros(K.shape)
-        sigma_gradient = np.zeros((args.state_dim, args.state_dim))
-        for i in range(args.m):
-            U_i = 2 * (np.random.rand(*K.shape) - 0.5)
-            U_i = (args.r / np.linalg.norm(U_i)) * U_i
-            state = env.reset()
-            cost_list, state_list = env.rollout(K + U_i, state, args.l)
-            C_i = sum(cost_list)
-            sigma_i = sum([np.dot(i, i.T) for i in state_list])
-            c_gradient += C_i * U_i
-            sigma_gradient += sigma_i
+        p = Pool(multiprocessing.cpu_count() - 2)
+        record1 = multiprocessing.Manager().list()
+        record2 = multiprocessing.Manager().list()
+        for i in range(args.l):
+            p.apply_async(func=sub, args=(K, record1, record2, args,))
 
-        c_gradient *= (d / (args.m * args.r ** 2))
-        sigma_gradient *= 1 / args.m
+        p.close()
+        p.join()
+        c_gradient = sum(record1) * (d / (args.m * args.r ** 2))
+        sigma_gradient = sum(record2) * (1 / args.m)
         if not args.natural:
             gradient = c_gradient
         else:
@@ -83,7 +95,6 @@ def main(args):
             logger.add_scalar("K norm", np.linalg.norm(K), epoch)
             logger.add_scalar("optimal K norm", np.linalg.norm(optimal_K), epoch)
             logger.add_scalar("norm of difference", np.linalg.norm(K - optimal_K) / np.linalg.norm(optimal_K), epoch)
-        # print(sum(cost_list1), sum(cost_list2), (sum(cost_list1) - sum(cost_list2)) / sum(cost_list2))
 
 
 if __name__ == '__main__':
@@ -94,7 +105,7 @@ if __name__ == '__main__':
     parser.add_argument("--m", default=100, type=int, help="number of trajectories")
     parser.add_argument("--r", default=0.05, type=float, help="smoothing parameter")
     parser.add_argument("--epoch", default=100000, type=int, help="number of training epochs")
-    parser.add_argument("--lr", default=5e-3, type=float, help="learning rate")
+    parser.add_argument("--lr", default=1e-3, type=float, help="learning rate")
     parser.add_argument("--natural", default=True, action="store_true")
     args = parser.parse_args()
     main(args=args)
