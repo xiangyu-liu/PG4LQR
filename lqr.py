@@ -8,6 +8,29 @@ from tensorboardX import SummaryWriter
 np.random.seed(0)
 
 
+class Adam:
+    def __init__(self, lr=0.01, beta1=0.9, beta2=0.999):
+        self.lr = lr
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.iter = 0
+        self.m = None
+        self.v = None
+
+    def update(self, params, grads):
+        if self.m is None:
+            self.m = np.zeros_like(params)
+            self.v = np.zeros_like(params)
+
+        self.iter += 1
+        lr_t = self.lr * np.sqrt(1.0 - self.beta2 ** self.iter) / (1.0 - self.beta1 ** self.iter)
+
+        self.m += (1 - self.beta1) * (grads - self.m)
+        self.v += (1 - self.beta2) * (grads ** 2 - self.v)
+        params -= lr_t * self.m / (np.sqrt(self.v) + 1e-7)
+        return params
+
+
 def modify_dynamics4test(env):
     env.A = np.diag([1, ] * env.state_dim)
     env.B = np.diag([1, ] * env.action_dim)
@@ -34,6 +57,8 @@ def main(args):
     run_dir = model_dir / curr_run
     os.makedirs(str(run_dir))
     logger = SummaryWriter(str(run_dir))
+
+    adam = Adam(lr=args.lr)
     env = Dynamics(args.state_dim, args.action_dim)
     # modify_dynamics4test(env)
     optimal_K = env.cal_optimal_K()
@@ -64,27 +89,26 @@ def main(args):
         if np.linalg.norm(gradient) >= 10:
             gradient *= (10 / np.linalg.norm(gradient))
 
-        K = K - args.lr * gradient
-        state = env.reset()
-        cost_list1, _ = env.rollout(K, state, 10)
-        cost_list2, _ = env.rollout(optimal_K, state, 10)
+        # K = K - args.lr * gradient
+        K = adam.update(K, gradient)
         if epoch % 50 == 0:
+            state = env.reset()
+            cost_list1, _ = env.rollout(K, state, 20)
+            cost_list2, _ = env.rollout(optimal_K, state, 20)
             print(
-                "epoch is {}\ngradient norm is {}\nK norm is {}\noptimal K norm is {}\nnorm of difference is {}\n".format(
+                "epoch is {}\ngradient norm is {}\nK norm is {}\noptimal K norm is {}\nnorm of difference is {}\ncost difference ratio is {}\n".format(
                     epoch,
                     np.linalg.norm(gradient),
                     np.linalg.norm(K),
-                    np.linalg.norm(
-                        optimal_K),
-                    np.linalg.norm(
-                        K - optimal_K) / np.linalg.norm(
-                        optimal_K)))
+                    np.linalg.norm(optimal_K),
+                    np.linalg.norm(K - optimal_K) / np.linalg.norm(optimal_K),
+                    ((sum(cost_list1) - sum(cost_list2)) / sum(cost_list2))[0, 0]))
             logger.add_scalar("gradient norm", np.linalg.norm(gradient), epoch)
             logger.add_scalar("K norm", np.linalg.norm(K), epoch)
             logger.add_scalar("optimal K norm", np.linalg.norm(optimal_K), epoch)
             logger.add_scalar("norm of difference", np.linalg.norm(K - optimal_K) / np.linalg.norm(optimal_K), epoch)
-        # print(sum(cost_list1), sum(cost_list2), (sum(cost_list1) - sum(cost_list2)) / sum(cost_list2))
-
+            logger.add_scalar("cost difference", (sum(cost_list1) - sum(cost_list2)) / sum(cost_list2), epoch)
+    logger.export_scalars_to_json(str(run_dir / 'summary.json'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -94,7 +118,7 @@ if __name__ == '__main__':
     parser.add_argument("--m", default=100, type=int, help="number of trajectories")
     parser.add_argument("--r", default=0.05, type=float, help="smoothing parameter")
     parser.add_argument("--epoch", default=100000, type=int, help="number of training epochs")
-    parser.add_argument("--lr", default=5e-3, type=float, help="learning rate")
+    parser.add_argument("--lr", default=1e-2, type=float, help="learning rate")
     parser.add_argument("--natural", default=True, action="store_true")
     args = parser.parse_args()
     main(args=args)
