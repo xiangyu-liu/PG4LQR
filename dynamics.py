@@ -1,6 +1,5 @@
 import numpy as np
-# np.random.seed(0)
-import warnings
+np.random.seed(0)
 import scipy
 import scipy.linalg
 
