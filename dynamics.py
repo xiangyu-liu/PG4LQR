@@ -4,6 +4,7 @@ import warnings
 import scipy
 import scipy.linalg
 
+
 # warnings.simplefilter('error', RuntimeWarning)
 
 
@@ -26,33 +27,31 @@ class Dynamics:
 
         self.Q = np.random.rand(*[self.state_dim, self.state_dim])
         self.Q = (self.Q + self.Q.T) / 2
+        Q_eig_max = max(i.real for i in np.linalg.eigvals(self.Q) if i.imag == 0)
         Q_eig_min = min(i.real for i in np.linalg.eigvals(self.Q) if i.imag == 0)
-        # print(Q_eig_min)
-        # make sure Q is definite
+        # make sure Q is definite and the scale is not too large
         if Q_eig_min < 0:
             self.Q = self.Q - Q_eig_min * np.diag([1, ] * self.state_dim)
+            self.Q = self.Q / (Q_eig_max - Q_eig_min)
 
         self.R = np.random.rand(*[self.action_dim, self.action_dim])
         self.R = (self.R + self.R.T) / 2
+        R_eig_max = max(i.real for i in np.linalg.eigvals(self.R) if i.imag == 0)
         R_eig_min = min(i.real for i in np.linalg.eigvals(self.R) if i.imag == 0)
-        # print(R_eig_min)
-        # make sure R is definite
+        # make sure R is definite and the scale is not too large
         if R_eig_min < 0:
             self.R = self.R - R_eig_min * np.diag([1, ] * self.action_dim)
+            self.R = self.R / (R_eig_max - R_eig_min)
 
     def reset(self):
         self.state = np.random.rand(*[self.state_dim, 1])
         return self.state
 
     def step(self, action):
-        try:
-            with warnings.catch_warnings():
-                self.state = np.dot(self.A, self.state) + np.dot(self.B, action)
-        except:
-            # print(self.state)
-            pass
         reward = np.linalg.multi_dot([self.state.T, self.Q, self.state]) + np.linalg.multi_dot(
             [action.T, self.R, action])
+        self.state = np.dot(self.A, self.state) + np.dot(self.B, action)
+
         return self.state, reward
 
     def cal_optimal_K(self):
@@ -80,3 +79,13 @@ class Dynamics:
                 break
         return P_new
 
+    def rollout(self, K, state, l):
+        self.state = state
+        state_list = []
+        cost_list = []
+        for i in range(l):
+            state_list.append(state)
+            action = np.dot(K, state)
+            state, cost = self.step(action)
+            cost_list.append(cost)
+        return cost_list, state_list
