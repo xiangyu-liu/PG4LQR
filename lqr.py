@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 import os
 from tensorboardX import SummaryWriter
+import pickle
 
 np.random.seed(0)
 
@@ -57,6 +58,7 @@ def main(args):
     run_dir = model_dir / curr_run
     os.makedirs(str(run_dir))
     logger = SummaryWriter(str(run_dir))
+    print("making dir {}".format((str(run_dir))))
 
     adam = Adam(lr=args.lr)
     env = Dynamics(args.state_dim, args.action_dim)
@@ -65,6 +67,7 @@ def main(args):
     K = np.zeros((args.action_dim, args.state_dim))
     d = args.state_dim
 
+    result_list = []
     for epoch in range(args.epoch):
         c_gradient = np.zeros(K.shape)
         sigma_gradient = np.zeros((args.state_dim, args.state_dim))
@@ -107,8 +110,12 @@ def main(args):
             logger.add_scalar("K norm", np.linalg.norm(K), epoch)
             logger.add_scalar("optimal K norm", np.linalg.norm(optimal_K), epoch)
             logger.add_scalar("norm of difference", np.linalg.norm(K - optimal_K) / np.linalg.norm(optimal_K), epoch)
-            logger.add_scalar("cost difference", (sum(cost_list1) - sum(cost_list2)) / sum(cost_list2), epoch)
-    logger.export_scalars_to_json(str(run_dir / 'summary.json'))
+            logger.add_scalar("cost difference", ((sum(cost_list1) - sum(cost_list2)) / sum(cost_list2))[0, 0], epoch)
+            result_list.append([np.linalg.norm(gradient), np.linalg.norm(K), np.linalg.norm(optimal_K),
+                                np.linalg.norm(K - optimal_K) / np.linalg.norm(optimal_K),
+                                ((sum(cost_list1) - sum(cost_list2)) / sum(cost_list2))[0, 0]])
+    pickle.dump(result_list, open(run_dir / "summary.pkl", mode="wb"))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -117,7 +124,7 @@ if __name__ == '__main__':
     parser.add_argument("--l", default=10, type=int, help="roll-out length")
     parser.add_argument("--m", default=100, type=int, help="number of trajectories")
     parser.add_argument("--r", default=0.05, type=float, help="smoothing parameter")
-    parser.add_argument("--epoch", default=100000, type=int, help="number of training epochs")
+    parser.add_argument("--epoch", default=10, type=int, help="number of training epochs")
     parser.add_argument("--lr", default=1e-2, type=float, help="learning rate")
     parser.add_argument("--natural", default=True, action="store_true")
     args = parser.parse_args()
