@@ -114,7 +114,8 @@ def main(args):
             result_list.append([np.linalg.norm(gradient), np.linalg.norm(K), np.linalg.norm(optimal_K),
                                 np.linalg.norm(K - optimal_K) / np.linalg.norm(optimal_K),
                                 ((sum(cost_list1) - sum(cost_list2)) / sum(cost_list2))[0, 0]])
-    pickle.dump(result_list, open(run_dir / "summary.pkl", mode="wb"))
+        if epoch % 1000 == 0:
+            pickle.dump(result_list, open(run_dir / "summary.pkl", mode="wb"))
 
 
 if __name__ == '__main__':
