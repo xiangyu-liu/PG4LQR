@@ -131,13 +131,13 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--state_dim", default=2, type=int)
-    parser.add_argument("--action_dim", default=2, type=int)
+    parser.add_argument("--state_dim", default=100, type=int)
+    parser.add_argument("--action_dim", default=20, type=int)
     parser.add_argument("--l", default=20, type=int, help="roll-out length")
     parser.add_argument("--m", default=100, type=int, help="number of trajectories")
     parser.add_argument("--r", default=0.05, type=float, help="smoothing parameter")
     parser.add_argument("--epoch", default=1000000, type=int, help="number of training epochs")
     parser.add_argument("--lr", default=1e-3, type=float, help="learning rate")
-    parser.add_argument("--natural", default=False, action="store_true")
+    parser.add_argument("--natural", default=True, action="store_true")
     args = parser.parse_args()
     main(args=args)
