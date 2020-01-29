@@ -10,6 +10,10 @@ np.random.seed(0)
 
 
 class Adam:
+    '''
+    implementation of adam optimizer
+    '''
+
     def __init__(self, lr=0.01, beta1=0.9, beta2=0.999):
         self.lr = lr
         self.beta1 = beta1
@@ -31,7 +35,7 @@ class Adam:
         params -= lr_t * self.m / (np.sqrt(self.v) + 1e-7)
         return params
 
-
+# this function is only for test usage
 def modify_dynamics4test(env):
     env.A = np.diag([1, ] * env.state_dim)
     env.B = np.diag([1, ] * env.action_dim)
@@ -62,7 +66,7 @@ def main(args):
 
     adam = Adam(lr=args.lr)
     env = Dynamics(args.state_dim, args.action_dim)
-    # modify_dynamics4test(env)
+    # calculate the optimal policy
     optimal_K = env.cal_optimal_K()
     K = np.zeros((args.action_dim, args.state_dim))
     d = args.state_dim
@@ -72,12 +76,15 @@ def main(args):
         c_gradient = np.zeros(K.shape)
         sigma_gradient = np.zeros((args.state_dim, args.state_dim))
         for i in range(args.m):
+            # give the policy a random perturbation
             U_i = 2 * (np.random.rand(*K.shape) - 0.5)
             U_i = (args.r / np.linalg.norm(U_i)) * U_i
             state = env.reset()
+            # roll out the policy with perturbation
             cost_list, state_list = env.rollout(K + U_i, state, args.l)
             C_i = sum(cost_list)
             sigma_i = sum([np.dot(i, i.T) for i in state_list])
+            # estimate the gradients and covariance matrix
             c_gradient += C_i * U_i
             sigma_gradient += sigma_i
 
@@ -92,10 +99,14 @@ def main(args):
         if np.linalg.norm(gradient) >= 10:
             gradient *= (10 / np.linalg.norm(gradient))
 
+        # the usage of adam optimizer is optional
+        # if you do not want this you can just un-comment the next line and comment the next of the next one
         # K = K - args.lr * gradient
         K = adam.update(K, gradient)
+
         if epoch % 50 == 0:
             state = env.reset()
+            # evaluate the current policy
             cost_list1, _ = env.rollout(K, state, 20)
             cost_list2, _ = env.rollout(optimal_K, state, 20)
             print(
@@ -120,13 +131,13 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--state_dim", default=100, type=int)
-    parser.add_argument("--action_dim", default=20, type=int)
+    parser.add_argument("--state_dim", default=2, type=int)
+    parser.add_argument("--action_dim", default=2, type=int)
     parser.add_argument("--l", default=20, type=int, help="roll-out length")
-    parser.add_argument("--m", default=500, type=int, help="number of trajectories")
-    parser.add_argument("--r", default=0.005, type=float, help="smoothing parameter")
+    parser.add_argument("--m", default=100, type=int, help="number of trajectories")
+    parser.add_argument("--r", default=0.05, type=float, help="smoothing parameter")
     parser.add_argument("--epoch", default=1000000, type=int, help="number of training epochs")
-    parser.add_argument("--lr", default=1e-4, type=float, help="learning rate")
+    parser.add_argument("--lr", default=1e-3, type=float, help="learning rate")
     parser.add_argument("--natural", default=False, action="store_true")
     args = parser.parse_args()
     main(args=args)

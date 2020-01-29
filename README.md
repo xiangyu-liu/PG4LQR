@@ -6,7 +6,7 @@ The structure of this project is shown as follows
 ```
 PG4LQR
 |--dynamics.py: implementation of LQR system
-|--lqr.py: implementation of model-free algorithm plus the adam optimizer
+|--lqr.py: implementation of model-free algorithm plus the adam optimizer (optional)
 |--parallel_lqr.py: the multi-process version (the algorithm is the same as lqr.py)
 |--plot.py: plot figures according to saved results
 ```
@@ -14,7 +14,7 @@ PG4LQR
 ## Usage
 
 ```shell
-python lqr.py --action_dim xx --state_dim xx --lr 1e-3 --epoch 10000 --r 0.05 --natural
+python lqr.py --action_dim xx --state_dim xx --lr xx --epoch xx --r xx --natural
 ```
 
 - action_dim: dimension of inputs
@@ -23,3 +23,5 @@ python lqr.py --action_dim xx --state_dim xx --lr 1e-3 --epoch 10000 --r 0.05 --
 - epoch: total number of training iterations
 - r: the smoothing parameter
 - natural: adding this argument means using natural policy gradient (gradient descent as default)
+
+Currently, the single-process version is more efficient. You can just ignore parallel version

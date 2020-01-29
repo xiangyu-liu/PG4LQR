@@ -18,11 +18,10 @@ class Dynamics:
         self.B = np.random.rand(*[self.state_dim, self.action_dim])
 
         A_eig_max = max([i.real for i in np.linalg.eigvals(self.A) if i.imag == 0])
-        # print(A_eig_max)
+        # scale the matrix A such that the system can be more stable
         if A_eig_max >= 1:
             # self.A = self.A - (A_eig_max - 0.5) * np.diag([1, ] * self.state_dim)
             self.A = self.A / (A_eig_max)
-        # print("max value:", max([i.real for i in np.linalg.eigvals(self.A) if i.imag == 0]))
 
         self.Q = np.random.rand(*[self.state_dim, self.state_dim])
         self.Q = (self.Q + self.Q.T) / 2
@@ -62,6 +61,10 @@ class Dynamics:
         return scipy.linalg.solve_discrete_are(self.A, self.B, self.Q, self.R)
 
     def cal_approx_P_manually(self):
+        '''
+        calculate P manually in a iterative approach
+        :return: P
+        '''
         P_old = self.Q
         i = 0
         while True:
@@ -79,6 +82,12 @@ class Dynamics:
         return P_new
 
     def rollout(self, K, state, l):
+        '''
+        :param K: the policy matrix
+        :param state: the start state
+        :param l: the roll-out length
+        :return: cost sequence and state sequence
+        '''
         self.state = state
         state_list = []
         cost_list = []
