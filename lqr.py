@@ -89,9 +89,9 @@ def main(args):
             c_gradient += C_i * U_i
             old_sigma = sigma_gradient
             sigma_gradient += sigma_i
-            sigma_norm_diff = np.linalg.norm(
-                np.linalg.inv(old_sigma / i) - np.linalg.inv(sigma_gradient / (i + 1))) / np.linalg.norm(
-                np.linalg.inv(old_sigma / i))
+            # sigma_norm_diff = np.linalg.norm(
+            #     np.linalg.inv(old_sigma / i) - np.linalg.inv(sigma_gradient / (i + 1))) / np.linalg.norm(
+            #     np.linalg.inv(old_sigma / i))
         #     if not (i==0):
         #         print("{}th iteration sigma norm diff is {}".format(i, sigma_norm_diff))
         # print('\n')
