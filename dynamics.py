@@ -21,7 +21,7 @@ class Dynamics:
         # scale the matrix A such that the system can be more stable
         if A_eig_max >= 1:
             # self.A = self.A - (A_eig_max - 0.5) * np.diag([1, ] * self.state_dim)
-            self.A = self.A / (A_eig_max)
+            self.A = self.A / (1.05*A_eig_max)
 
         self.Q = np.random.rand(*[self.state_dim, self.state_dim])
         self.Q = (self.Q + self.Q.T) / 2
@@ -81,7 +81,7 @@ class Dynamics:
                 break
         return P_new
 
-    def rollout(self, K, state, l):
+    def rollout(self, K, state, l, forced_length=False):
         '''
         :param K: the policy matrix
         :param state: the start state
@@ -92,8 +92,17 @@ class Dynamics:
         state_list = []
         cost_list = []
         for i in range(l):
+            cov_old = sum([np.dot(i, i.T) for i in state_list])
             state_list.append(state)
+            cov_new = sum([np.dot(i, i.T) for i in state_list])
+            if i == 0:
+                norm_diff = 10
+            else:
+                norm_diff = np.linalg.norm(cov_new-cov_old)/np.linalg.norm(cov_old)
+                # print("{}th iteration: {}".format(i, norm_diff))
             action = np.dot(K, state)
             state, cost = self.step(action)
             cost_list.append(cost)
+            if norm_diff<= 0.0001 and not forced_length:
+                break
         return cost_list, state_list

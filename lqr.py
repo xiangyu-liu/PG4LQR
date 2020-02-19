@@ -35,6 +35,7 @@ class Adam:
         params -= lr_t * self.m / (np.sqrt(self.v) + 1e-7)
         return params
 
+
 # this function is only for test usage
 def modify_dynamics4test(env):
     env.A = np.diag([1, ] * env.state_dim)
@@ -86,8 +87,14 @@ def main(args):
             sigma_i = sum([np.dot(i, i.T) for i in state_list])
             # estimate the gradients and covariance matrix
             c_gradient += C_i * U_i
+            old_sigma = sigma_gradient
             sigma_gradient += sigma_i
-
+            sigma_norm_diff = np.linalg.norm(
+                np.linalg.inv(old_sigma / i) - np.linalg.inv(sigma_gradient / (i + 1))) / np.linalg.norm(
+                np.linalg.inv(old_sigma / i))
+        #     if not (i==0):
+        #         print("{}th iteration sigma norm diff is {}".format(i, sigma_norm_diff))
+        # print('\n')
         c_gradient *= (d / (args.m * args.r ** 2))
         sigma_gradient *= 1 / args.m
         if not args.natural:
@@ -105,10 +112,17 @@ def main(args):
         K = adam.update(K, gradient)
 
         if epoch % 50 == 0:
-            state = env.reset()
+            cost_stat1 = []
+            cost_stat2 = []
             # evaluate the current policy
-            cost_list1, _ = env.rollout(K, state, 20)
-            cost_list2, _ = env.rollout(optimal_K, state, 20)
+            for tmp in range(10):
+                state = env.reset()
+                cost_list1, _ = env.rollout(K, state, 20, True)
+                cost_list2, _ = env.rollout(optimal_K, state, 20, True)
+                cost_stat1.append(sum(cost_list1))
+                cost_stat2.append(sum(cost_list2))
+            cost_list1 = cost_stat1
+            cost_list2 = cost_stat2
             print(
                 "epoch is {}\ngradient norm is {}\nK norm is {}\noptimal K norm is {}\nnorm of difference is {}\ncost difference ratio is {}\n".format(
                     epoch,
@@ -133,11 +147,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--state_dim", default=100, type=int)
     parser.add_argument("--action_dim", default=20, type=int)
-    parser.add_argument("--l", default=20, type=int, help="roll-out length")
-    parser.add_argument("--m", default=100, type=int, help="number of trajectories")
-    parser.add_argument("--r", default=0.05, type=float, help="smoothing parameter")
+    parser.add_argument("--l", default=30, type=int, help="roll-out length")
+    parser.add_argument("--m", default=300, type=int, help="number of trajectories")
+    parser.add_argument("--r", default=0.005, type=float, help="smoothing parameter")
     parser.add_argument("--epoch", default=1000000, type=int, help="number of training epochs")
     parser.add_argument("--lr", default=1e-3, type=float, help="learning rate")
-    parser.add_argument("--natural", default=True, action="store_true")
+    parser.add_argument("--natural", default=False, action="store_true")
     args = parser.parse_args()
     main(args=args)
