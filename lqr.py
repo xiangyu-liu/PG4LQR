@@ -90,11 +90,11 @@ def main(args):
             old_sigma = sigma_gradient
             sigma_gradient += sigma_i
             # sigma_norm_diff = np.linalg.norm(
-            #     np.linalg.inv(old_sigma / i) - np.linalg.inv(sigma_gradient / (i + 1))) / np.linalg.norm(
-            #     np.linalg.inv(old_sigma / i))
+            #     np.linalg.inv(old_sigma / i) - np.linalg.inv(sigma_gradient / (i + 1))) / np.linalg.norm( np.linalg.inv(old_sigma / i))
         #     if not (i==0):
         #         print("{}th iteration sigma norm diff is {}".format(i, sigma_norm_diff))
         # print('\n')
+        print(epoch)
         c_gradient *= (d / (args.m * args.r ** 2))
         sigma_gradient *= 1 / args.m
         if not args.natural:
@@ -111,7 +111,7 @@ def main(args):
         # K = K - args.lr * gradient
         K = adam.update(K, gradient)
 
-        if epoch % 50 == 0:
+        if epoch % 1 == 0:
             cost_stat1 = []
             cost_stat2 = []
             # evaluate the current policy
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     parser.add_argument("--state_dim", default=100, type=int)
     parser.add_argument("--action_dim", default=20, type=int)
     parser.add_argument("--l", default=30, type=int, help="roll-out length")
-    parser.add_argument("--m", default=300, type=int, help="number of trajectories")
+    parser.add_argument("--m", default=100, type=int, help="number of trajectories")
     parser.add_argument("--r", default=0.005, type=float, help="smoothing parameter")
     parser.add_argument("--epoch", default=1000000, type=int, help="number of training epochs")
     parser.add_argument("--lr", default=1e-3, type=float, help="learning rate")
